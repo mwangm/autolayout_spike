@@ -1,0 +1,110 @@
+<!--
+  Copyright (c) 2006-2013, JGraph Ltd
+  
+  Hello, World! example for mxGraph. This example demonstrates using
+  a DOM node to create a graph and adding vertices and edges.
+-->
+<html>
+<head>
+	<title>Joint Js</title>
+
+	<!-- Sets the basepath for the library if not in same directory -->
+	<script type="text/javascript">
+		mxBasePath = '../src';
+	</script>
+
+	<!-- Loads and initializes the library -->
+	<script type="text/javascript" src="https://code.jquery.com/jquery-1.12.3.min.js"></script>
+	<script type="text/javascript" src="http://cpettitt.github.io/project/graphlib/latest/graphlib.min.js"></script>
+	<script type="text/javascript" src="http://cpettitt.github.io/project/dagre/latest/dagre.min.js"></script>
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/3.10.1/lodash.min.js"></script>
+	<script type="text/javascript" src="http://backbonejs.org/backbone-min.js"></script>
+	<script type="text/javascript" src="./jointJs.min.js"></script>
+	<script type="text/javascript" src="./directedGraph.js"></script>
+	<link rel="stylesheet" href="https://raw.githubusercontent.com/clientIO/joint/master/dist/joint.min.css">
+
+	<!-- Example code -->
+	<script type="text/javascript">
+		// Program starts here. Creates a sample graph in the
+		// DOM node with the specified ID. This function is invoked
+		// from the onLoad event handler of the document (see below).
+		function main(container)
+		{
+			var graph = new joint.dia.Graph;
+			var paper = new joint.dia.Paper({
+				el: container,
+				width: 1000,
+				height: 1000,
+				model: graph,
+				gridSize: 1
+			});
+
+			function options(name) {
+				return {
+					position: {x: 100, y: 30},
+					size: {width: 10, height: 10},
+					attrs: {rect: {opacity: 0.5}, text: {text: name, fill: 'blue'}}
+				};
+			}
+
+			var rect5 = new joint.shapes.basic.Rect(options("box 5"));
+			var rect6 = new joint.shapes.basic.Rect(options("box 6"));
+			var rect = new joint.shapes.basic.Rect(options("box 1"));
+			var rect2 = new joint.shapes.basic.Rect(options("box 2"));
+			var rect3 = new joint.shapes.basic.Rect(options("box 3"));
+			var rect4 = new joint.shapes.basic.Rect(options("box 4"));
+
+			var link1 = new joint.dia.Link({
+				source: { id: rect.id },
+				target: { id: rect2.id }
+			});
+
+			var link2 = new joint.dia.Link({
+				source: { id: rect.id },
+				target: { id: rect3.id }
+			});
+
+			var link3 = new joint.dia.Link({
+				source: { id: rect3.id },
+				target: { id: rect4.id }
+			});
+
+			var link4 = new joint.dia.Link({
+				source: { id: rect2.id },
+				target: { id: rect4.id }
+			});
+
+			rect6.embed(rect3);
+			rect6.embed(rect5);
+
+			rect5.embed(rect2);
+			rect5.embed(rect4);
+
+
+
+
+
+			graph.addCells([rect, rect2,rect3, rect4, rect5, rect6, link1,link2,link3,link4]);
+
+			[rect, rect2,rect3, rect4, rect5, rect6].forEach(function(el){
+				console.log(el);
+				console.log(el.get('rank'));
+
+
+			});
+			rect6.toBack({deep:true});
+			joint.layout.DirectedGraph.layout(graph, { setLinkVertices: false });
+
+		};
+	</script>
+</head>
+
+<!-- Page passes the container for the graph to the program -->
+<body onload="main(document.getElementById('graphContainer'))">
+
+	<!-- Creates a container for the graph with a grid wallpaper -->
+	<div id="graphContainer"
+		style="position:relative;overflow:hidden;width:1000px;height:3000px;background:url('examples/editors/images/grid.gif');cursor:default;">
+	</div>
+</body>
+</html>

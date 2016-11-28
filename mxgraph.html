@@ -6,7 +6,7 @@
 -->
 <html>
 <head>
-    <title>Joint Js</title>
+    <title>mx graph</title>
 
     <!-- Sets the basepath for the library if not in same directory -->
     <script type="text/javascript">
@@ -107,7 +107,7 @@
             for (var id in graphModel.cells) {
                 var cell = graphModel.cells[id];
 
-                if (cell.isEdge()) {
+                if (cell.isEdge() && (cell.target.children==null)) { //dagre can't handle edges on compound nodes   https://github.com/cytoscape/cytoscape.js-dagre/blob/master/cytoscape-dagre.js:126
                     var source = cell.source;
                     var target = cell.target;
 
@@ -184,6 +184,8 @@
                     var v3 = graph.insertVertex(parent, null, "3", 0, 0, 240, 30);
                     graph.insertEdge(parent, null, null, v1, v3);
 
+                    graph.insertEdge(parent, null, null, v3, v2);
+                    graph.insertEdge(parent, null, null, v3, v220);
 
                     g = toGraphLib(graph, {
                         setNodeLabel: function (node) {
@@ -202,6 +204,7 @@
                             return edge.getId();
                         }
                     });
+
 
                     dagre.layout(g);
 
@@ -230,8 +233,8 @@
 //                                    geometry.y = glNode.y
 //                                }
 
-                                geometry.x = glNode.x -  glNode.width / 2;
-                                geometry.y = glNode.y- glNode.height / 2;
+                                geometry.x = glNode.x - glNode.width / 2;
+                                geometry.y = glNode.y - glNode.height / 2;
                             }
                         },
                         importEdge: function (edgeObj, gl) {

@@ -6,7 +6,7 @@
 -->
 <html>
 <head>
-    <title>mx graph</title>
+    <title>mx graph copy</title>
 
     <!-- Sets the basepath for the library if not in same directory -->
     <script type="text/javascript">
@@ -46,14 +46,6 @@
                 return cell.isVertex();
             });
 
-
-            embeddedCells.forEach(function (cell) {
-                console.log("cell" + cell.id + ":" + cell.value);
-                console.log(cell.geometry);
-
-            });
-
-
             if (embeddedCells.length > 0) {
 
                 if (opt.deep) {
@@ -62,52 +54,53 @@
 
                 var bounds = graph.getBoundingBoxFromGeometry(embeddedCells);
 
-
-                this.geometry.x = bounds.x-opt.padding;
-                this.geometry.y = bounds.y-opt.padding;
+                this.geometry.x = bounds.x - opt.padding;
+                this.geometry.y = bounds.y - opt.padding;
                 this.geometry.width = bounds.width + 2 * opt.padding;
                 this.geometry.height = bounds.height + 2 * opt.padding;
 
-                var that= this;
+                var that = this;
                 embeddedCells.forEach(function (cell) {
-                    console.log("cell" + cell.id + ":" + cell.value);
-                    console.log(cell.geometry);
-
                     cell.geometry.x -= that.geometry.x
                     cell.geometry.y -= that.geometry.y
                 });
-
-
-                console.log(bounds);
-                console.log(graph.getBoundingBox(embeddedCells));
-
-
-                console.log(this.geometry);
-
 
                 return this;
             }
         };
 
-        function toGraphLib(graph, opt) {
+        function toGraphLib(graph) {
+            function setNodeLabel(node) {
+                return {
+                    width: node.getGeometry().width,
+                    height: node.getGeometry().height,
+                    rank: node.getAttribute('rank')
+                };
+            }
+
+            function setEdgeLabel(edge) {
+                return {
+                    minLen: edge.getAttribute('minLen') || 1
+                };
+            }
+
+            function setEdgeName(edge) {
+                return edge.getId();
+            }
+
             var graphModel = graph.getModel();
-            var glGraphType = {
+
+            var glGraph = new graphlib.Graph({
                 directed: true,
                 compound: true,
                 multigraph: true
-            };
-
-            var glGraph = new graphlib.Graph(glGraphType);
+            });
             glGraph.setGraph({});
-
-            var setNodeLabel = opt.setNodeLabel || _.noop;
-            var setEdgeLabel = opt.setEdgeLabel || _.noop;
-            var setEdgeName = opt.setEdgeName || _.noop;
 
             for (var id in graphModel.cells) {
                 var cell = graphModel.cells[id];
 
-                if (cell.isEdge() && (cell.target.children==null)) { //dagre can't handle edges on compound nodes   https://github.com/cytoscape/cytoscape.js-dagre/blob/master/cytoscape-dagre.js:126
+                if (cell.isEdge() && (cell.target.children == null)) { //dagre can't handle edges on compound nodes   https://github.com/cytoscape/cytoscape.js-dagre/blob/master/cytoscape-dagre.js:126
                     var source = cell.source;
                     var target = cell.target;
 
@@ -128,15 +121,26 @@
             return glGraph;
         }
 
-        function fromGraphLib(graph, glGraph, opt) {
+        function updateInputGraph(graph, glGraph, opt) {
 
-            opt = opt || {};
+            function importNode(nodeId, glGraph) {
+                var cell = this.getModel().getCell(nodeId);
+                if (cell && cell.isVertex()) {
+                    var glNode = glGraph.node(nodeId);
+                    var geometry = cell.getGeometry();
+                    geometry.x = glNode.x - glNode.width / 2;
+                    geometry.y = glNode.y - glNode.height / 2;
+                }
+            }
 
-            var importNode = opt.importNode || _.noop;
-            var importEdge = opt.importEdge || _.noop;
-
-            // Import all nodes.
-            console.log(glGraph.nodes());
+            function importEdge(edgeObj, gl) {
+                var cell = this.getModel().getCell(edgeObj.name);
+                var glEdge = gl.edge(edgeObj);
+                var points = glEdge.points || [];
+                var geometry = cell.getGeometry();
+//                geometry.points = points.slice(1, points.length - 1);
+//                geometry.points = points;
+            }
 
             glGraph.nodes().forEach(function (nodeId) {
                 importNode.call(graph, nodeId, glGraph);
@@ -145,7 +149,20 @@
                 importEdge.call(graph, edge, glGraph);
             });
 
-            return graph;
+            _.chain(g.nodes())
+                    .filter(function (v) {
+                        return g.children(v).length > 0;
+                    })
+                    .map(graph.getModel().getCell, graph.getModel())
+                    .filter(function (cell) {
+                        return cell.isVertex();
+                    })
+                    // .forEach(function(x){console.log("****fdsf*****");console.log(x); console.log(x.isVertex())})
+                    .sortBy(function (cluster) {
+                        return -cluster.getAncestors().length;
+                    })
+                    .invoke('fitEmbeds', graph, {padding: 10})
+                    .value();
         }
 
         function main(container) {
@@ -157,6 +174,8 @@
 
                 var graph = new mxGraph(container);
                 var parent = graph.getDefaultParent();
+//                graph.getStylesheet().getDefaultEdgeStyle().put(mxConstants.STYLE_EDGE, mxConstants.EDGESTYLE_ELBOW);
+                graph.getStylesheet().getDefaultEdgeStyle()[mxConstants.STYLE_EDGE] = mxConstants.EDGESTYLE_ORTHOGONAL;
 
                 graph.getModel().beginUpdate();
                 try {
@@ -187,90 +206,26 @@
                     graph.insertEdge(parent, null, null, v3, v2);
                     graph.insertEdge(parent, null, null, v3, v220);
 
-                    g = toGraphLib(graph, {
-                        setNodeLabel: function (node) {
-                            return {
-                                width: node.getGeometry().width,
-                                height: node.getGeometry().height,
-                                rank: node.getAttribute('rank')
-                            };
-                        },
-                        setEdgeLabel: function (edge) {
-                            return {
-                                minLen: edge.getAttribute('minLen') || 1
-                            };
-                        },
-                        setEdgeName: function (edge) {
-                            return edge.getId();
-                        }
-                    });
+                    var v4 = graph.insertVertex(parent, null, "4", 0, 0, 0, 0);
+                    var v5 = graph.insertVertex(v4, null, "5", 0, 0, 40, 40);
+                    var v6 = graph.insertVertex(v4, null, "6", 0, 0, 40, 40);
+                    var v7 = graph.insertVertex(v4, null, "7", 0, 0, 40, 40);
 
+                    graph.insertEdge(parent, null, null, v5, v6);
+                    graph.insertEdge(parent, null, null, v3, v5);
+                    graph.insertEdge(parent, null, null, v6, v7);
+                    graph.insertEdge(parent, null, null, v7, v0);
 
+                    g = toGraphLib(graph);
                     dagre.layout(g);
-
-                    g.nodes().forEach(function (v) {
-                        console.log("Node " + v + ": " + JSON.stringify(g.node(v)));
-                    });
-                    g.edges().forEach(function (e) {
-                        console.log("Edge " + e.v + " -> " + e.w + ": " + JSON.stringify(g.edge(e)));
-                    });
-
-                    fromGraphLib(graph, g, {
-                        importNode: function (nodeId, glGraph) {
-                            var cell = this.getModel().getCell(nodeId);
-                            if (cell && cell.isVertex()) {
-                                var glNode = glGraph.node(nodeId);
-                                var geometry = cell.getGeometry();
-//                                if (cell.parent && glGraph.node(cell.parent.id)) {
-//                                    var glParentNode = glGraph.node(cell.parent.id);
-////                                    geometry.x = glNode.x - glNode.width / 2 - (glParentNode.x - glNode.width / 2 );
-////                                    geometry.y = glNode.y - glNode.height / 2 - (glParentNode.y - glNode.height / 2);
-//                                    geometry.x = glNode.x- glParentNode.x;
-//                                    geometry.y = glNode.y - glParentNode.y;
-//                                }
-//                                else {
-//                                    geometry.x = glNode.x
-//                                    geometry.y = glNode.y
-//                                }
-
-                                geometry.x = glNode.x - glNode.width / 2;
-                                geometry.y = glNode.y - glNode.height / 2;
-                            }
-                        },
-                        importEdge: function (edgeObj, gl) {
-
-                            var cell = this.getModel().getCell(edgeObj.name);
-                            var glEdge = gl.edge(edgeObj);
-                            var points = glEdge.points || [];
-                            var geometry = cell.getGeometry();
-//                            geometry.points = points.slice(1, points.length - 1);
-                        }
-
-                    });
-
-                    _.chain(g.nodes())
-                            .filter(function (v) {
-                                return g.children(v).length > 0;
-                            })
-                            .map(graph.getModel().getCell, graph.getModel())
-                            .filter(function (cell) {
-                                return cell.isVertex();
-                            })
-                            //                            .forEach(function(x){console.log("****fdsf*****");console.log(x); console.log(x.isVertex())})
-                            .sortBy(function (cluster) {
-                                return -cluster.getAncestors().length;
-                            })
-                            .invoke('fitEmbeds', graph, {padding: 10})
-                            .value();
-
-
+                    updateInputGraph(graph, g);
                 }
+
                 finally {
                     graph.getModel().endUpdate();
                 }
             }
         }
-        ;
     </script>
 </head>
 
